@@ -274,13 +274,13 @@
                                 <p>Menus</p>
                             </a>
                         </li>
-                        {{-- <li class="nav-item">
+                        <li class="nav-item">
                             <a href="{{ route('backend.admin.pages.index') }}"
                                 class="nav-link {{ request()->is('backend/admin/pages*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Pages</p>
                             </a>
-                        </li> --}}
+                        </li>
                     </ul>
                 </li>
             </ul>
