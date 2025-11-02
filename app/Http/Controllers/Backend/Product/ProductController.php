@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Backend\Product;
+
 use Intervention\Image\Facades\Image;
 use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
@@ -38,18 +39,18 @@ class ProductController extends Controller
             $products = Product::latest()->get();
             return DataTables::of($products)
                 ->addIndexColumn()
-          ->addColumn('image', function($data) {
-    if ($data->image) {
-        $url = asset('storage/' . $data->image);
-        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
-                    <img src="'.$url.'" alt="'.$data->name.'" style="width:100%; height:100%; object-fit:cover; transition: transform 0.3s;" class="img-hover-zoom"/>
+                ->addColumn('image', function ($data) {
+                    if ($data->image) {
+                        $url = asset('storage/' . $data->image);
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . $url . '" alt="' . $data->name . '" style="width:100%; height:100%; object-fit:cover; transition: transform 0.3s;" class="img-hover-zoom"/>
                 </div>';
-    } else {
-        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
-                    <img src="'.asset('assets/images/no-image.png').'" style="width:100%; height:100%; object-fit:cover;" />
+                    } else {
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . asset('assets/images/no-image.png') . '" style="width:100%; height:100%; object-fit:cover;" />
                 </div>';
-    }
-})
+                    }
+                })
 
 
                 ->addColumn('name', fn($data) => $data->name)
@@ -62,9 +63,16 @@ class ProductController extends Controller
                 )
                 ->addColumn('quantity', fn($data) => $data->quantity . ' ' . optional($data->unit)->short_name)
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y'))
-                ->addColumn('status', fn($data) => $data->status
-                    ? '<span class="badge bg-primary">Active</span>'
-                    : '<span class="badge bg-danger">Inactive</span>')
+                ->addColumn('status', function ($data) {
+                    $toggleUrl = route('backend.admin.products.toggle', $data->id); 
+                    $status = $data->status
+                        ? '<span class="badge bg-primary">Active</span>'
+                        : '<span class="badge bg-danger">Inactive</span>';
+                    return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
+                })
+
+
+
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
@@ -72,15 +80,10 @@ class ProductController extends Controller
                       <span class="sr-only">Toggle Dropdown</span>
                     </button>
                     <div class="dropdown-menu" role="menu">
-                      <a class="dropdown-item" href="'.route('backend.admin.products.edit', $data->id). '">
+                      <a class="dropdown-item" href="' . route('backend.admin.products.edit', $data->id) . '">
                     <i class="fas fa-edit"></i> Edit
                 </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.products.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
-                  </form>
-<div class="dropdown-divider"></div>
+
   <a class="dropdown-item" href="' . route('backend.admin.purchase.create', ['barcode' => $data->sku]) . '">
                 <i class="fas fa-cart-plus"></i> Purchase
             </a>
@@ -128,33 +131,33 @@ class ProductController extends Controller
      * Store a newly created resource in storage.
      */
 
-public function store(StoreProductRequest $request)
-{
-    abort_if(!auth()->user()->can('product_create'), 403);
-    $validated = $request->validated();
+    public function store(StoreProductRequest $request)
+    {
+        abort_if(!auth()->user()->can('product_create'), 403);
+        $validated = $request->validated();
 
-    $product = Product::create($validated);
+        $product = Product::create($validated);
 
-    if ($request->hasFile("product_image")) {
-        $file = $request->file("product_image");
+        if ($request->hasFile("product_image")) {
+            $file = $request->file("product_image");
 
-        // Generate unique filename with .webp
-        $filename = time() . '_' . uniqid() . '.webp';
+            // Generate unique filename with .webp
+            $filename = time() . '_' . uniqid() . '.webp';
 
-        // Path where to save
-        $path = storage_path('app/public/media/products/' . $filename);
+            // Path where to save
+            $path = storage_path('app/public/media/products/' . $filename);
 
-        // Convert image to WebP and save
-        $img = Image::make($file)->encode('webp', 80); // 80% quality
-        $img->save($path);
+            // Convert image to WebP and save
+            $img = Image::make($file)->encode('webp', 80); // 80% quality
+            $img->save($path);
 
-        // Save path in database (relative to storage)
-        $product->image = 'media/products/' . $filename;
-        $product->save();
+            // Save path in database (relative to storage)
+            $product->image = 'media/products/' . $filename;
+            $product->save();
+        }
+
+        return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
     }
-
-    return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
-}
 
 
     /**
@@ -185,57 +188,65 @@ public function store(StoreProductRequest $request)
      */
 
 
-public function update(UpdateProductRequest $request, $id)
-{
-    abort_if(!auth()->user()->can('product_update'), 403);
+    public function update(UpdateProductRequest $request, $id)
+    {
+        abort_if(!auth()->user()->can('product_update'), 403);
 
-    $validated = $request->validated();
-    $product = Product::findOrFail($id);
-    $oldImage = $product->image;
+        $validated = $request->validated();
+        $product = Product::findOrFail($id);
+        $oldImage = $product->image;
 
-    // Update other fields first
-    $product->update($validated);
+        // Update other fields first
+        $product->update($validated);
 
-    // Handle image upload & WebP conversion
-    if ($request->hasFile("product_image")) {
-        $file = $request->file("product_image");
+        // Handle image upload & WebP conversion
+        if ($request->hasFile("product_image")) {
+            $file = $request->file("product_image");
 
-        // Unique filename with .webp
-        $filename = time() . '_' . uniqid() . '.webp';
-        $path = storage_path('app/public/media/products/' . $filename);
+            // Unique filename with .webp
+            $filename = time() . '_' . uniqid() . '.webp';
+            $path = storage_path('app/public/media/products/' . $filename);
 
-        // Convert to WebP and save
-        $img = Image::make($file)->encode('webp', 80); // 80% quality
-        $img->save($path);
+            // Convert to WebP and save
+            $img = Image::make($file)->encode('webp', 80); // 80% quality
+            $img->save($path);
 
-        // Delete old image if exists
-        if ($oldImage) {
-            $this->fileHandler->secureUnlink($oldImage);
+            // Delete old image if exists
+            if ($oldImage) {
+                $this->fileHandler->secureUnlink($oldImage);
+            }
+
+            // Save new path in DB
+            $product->image = 'media/products/' . $filename;
+            $product->save();
         }
 
-        // Save new path in DB
-        $product->image = 'media/products/' . $filename;
-        $product->save();
+        return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
     }
-
-    return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
-}
 
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    // Toggle Active/Inactive
+    public function toggleStatus($id)
     {
+        abort_if(!auth()->user()->can('product_update'), 403); // permission check
 
-        abort_if(!auth()->user()->can('product_delete'), 403);
         $product = Product::findOrFail($id);
-        if ($product->image != '') {
-            $this->fileHandler->secureUnlink($product->image);
-        }
-        $product->delete();
-        return redirect()->back()->with('success', 'Product Deleted Successfully');
+
+        $product->status = $product->status ? 0 : 1;
+        $product->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Product status updated successfully!',
+            'new_status' => $product->status // optional, front-end update ke liye
+        ]);
     }
+
+
+
     public function import(Request $request)
     {
         if ($request->query('download-demo')) {

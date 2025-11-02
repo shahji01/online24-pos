@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Product;
 
 use App\Http\Controllers\Controller;
+use Intervention\Image\Facades\Image;
 use App\Models\Category;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
@@ -26,11 +27,26 @@ class CategoryController extends Controller
             $categories = Category::latest()->get();
             return DataTables::of($categories)
                 ->addIndexColumn()
-                ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
+                ->addColumn('image', function ($data) {
+                    if ($data->image) {
+                        $url = asset('storage/' . $data->image);
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . $url . '" alt="' . $data->name . '" style="width:100%; height:100%; object-fit:cover; transition: transform 0.3s;" class="img-hover-zoom"/>
+                </div>';
+                    } else {
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . asset('assets/images/no-image.png') . '" style="width:100%; height:100%; object-fit:cover;" />
+                </div>';
+                    }
+                })
                 ->addColumn('name', fn($data) => $data->name)
-                ->addColumn('status', fn($data) => $data->status
-                    ? '<span class="badge bg-primary">Active</span>'
-                    : '<span class="badge bg-danger">Inactive</span>')
+                ->addColumn('status', function ($data) {
+                    $toggleUrl = route('backend.admin.categories.toggle', $data->id); 
+                    $status = $data->status
+                        ? '<span class="badge bg-primary">Active</span>'
+                        : '<span class="badge bg-danger">Inactive</span>';
+                    return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
+                })
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
@@ -40,11 +56,7 @@ class CategoryController extends Controller
                     <div class="dropdown-menu" role="menu">
                       <a class="dropdown-item" href="' . route('backend.admin.categories.edit', $data->id) . '" ' . ' >
                     <i class="fas fa-edit"></i> Edit
-                </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.categories.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
+               
                   </form>
                   </div>';
                 })
@@ -66,24 +78,38 @@ class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        abort_if(!auth()->user()->can('category_create'), 403);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'status' => 'required|boolean',
-        ]);
-        $category = Category::create($request->except('category_image'));
-        if ($request->hasFile("category_image")) {
-            $category->image = $this->fileHandler->fileUploadAndGetPath($request->file("category_image"), "/public/media/categories");
-            $category->save();
-        }
+ public function store(Request $request)
+{
+    abort_if(!auth()->user()->can('category_create'), 403);
 
-        return redirect()->route('backend.admin.categories.index')->with('success', 'Category created successfully!');
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'status' => 'required|boolean',
+    ]);
+
+    $category = Category::create($request->except('category_image'));
+
+    // Handle image upload & WebP conversion
+    if ($request->hasFile("category_image")) {
+        $file = $request->file("category_image");
+
+        // Unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+        $path = storage_path('app/public/media/categories/' . $filename);
+
+        // Convert to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Save new path in DB
+        $category->image = 'media/categories/' . $filename;
+        $category->save();
     }
 
+    return redirect()->route('backend.admin.categories.index')->with('success', 'Category created successfully!');
+}
     /**
      * Display the specified resource.
      */
@@ -106,38 +132,62 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
-    {
-        abort_if(!auth()->user()->can('category_update'), 403);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'status' => 'required|boolean',
-        ]);
-        $category = Category::findOrFail($id);
-        $oldImage = $category->image;
-        $category->update($request->except('category_image'));
-        if ($request->hasFile("category_image")) {
-            $category->image = $this->fileHandler->fileUploadAndGetPath($request->file("category_image"), "/public/media/categories");
-            $category->save();
+   public function update(Request $request, $id)
+{
+    abort_if(!auth()->user()->can('category_update'), 403);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'category_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'status' => 'required|boolean',
+    ]);
+
+    $category = Category::findOrFail($id);
+    $oldImage = $category->image;
+
+    // Update other fields first
+    $category->update($request->except('category_image'));
+
+    // Handle image upload & WebP conversion
+    if ($request->hasFile("category_image")) {
+        $file = $request->file("category_image");
+
+        // Unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+        $path = storage_path('app/public/media/categories/' . $filename);
+
+        // Convert to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Delete old image if exists
+        if ($oldImage) {
             $this->fileHandler->secureUnlink($oldImage);
         }
 
-        return redirect()->route('backend.admin.categories.index')->with('success', 'Category updated successfully!');
+        // Save new path in DB
+        $category->image = 'media/categories/' . $filename;
+        $category->save();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
+    return redirect()->route('backend.admin.categories.index')->with('success', 'Category updated successfully!');
+}
+    
+      public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('category_delete'), 403);
+        abort_if(!auth()->user()->can('category_update'), 403); // permission check
+
         $category = Category::findOrFail($id);
-        if ($category->image != '') {
-            $this->fileHandler->secureUnlink($category->image);
-        }
-        $category->delete();
-        return redirect()->back()->with('success', 'Category Deleted Successfully');
+
+        $category->status = $category->status ? 0 : 1;
+        $category->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Category status updated successfully!',
+            'new_status' => $category->status // optional, front-end update ke liye
+        ]);
     }
+
 }

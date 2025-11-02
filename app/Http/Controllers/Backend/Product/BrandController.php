@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Backend\Product;
-
+use Intervention\Image\Facades\Image;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Trait\FileHandler;
@@ -27,11 +27,26 @@ class BrandController extends Controller
             $brands = Brand::latest()->get();
             return DataTables::of($brands)
                 ->addIndexColumn()
-                ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
+                  ->addColumn('image', function ($data) {
+                    if ($data->image) {
+                        $url = asset('storage/' . $data->image);
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . $url . '" alt="' . $data->name . '" style="width:100%; height:100%; object-fit:cover; transition: transform 0.3s;" class="img-hover-zoom"/>
+                </div>';
+                    } else {
+                        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="' . asset('assets/images/no-image.png') . '" style="width:100%; height:100%; object-fit:cover;" />
+                </div>';
+                    }
+                })
                 ->addColumn('name', fn($data) => $data->name)
-                ->addColumn('status', fn($data) => $data->status
-                    ? '<span class="badge bg-primary">Active</span>'
-                    : '<span class="badge bg-danger">Inactive</span>')
+                 ->addColumn('status', function ($data) {
+                    $toggleUrl = route('backend.admin.brands.toggle', $data->id); 
+                    $status = $data->status
+                        ? '<span class="badge bg-primary">Active</span>'
+                        : '<span class="badge bg-danger">Inactive</span>';
+                    return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
+                })
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
@@ -41,11 +56,6 @@ class BrandController extends Controller
                     <div class="dropdown-menu" role="menu">
                       <a class="dropdown-item" href="' . route('backend.admin.brands.edit', $data->id) . '" ' . ' >
                     <i class="fas fa-edit"></i> Edit
-                </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.brands.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
                   </form>
                   </div>';
                 })
@@ -69,23 +79,38 @@ class BrandController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        abort_if(!auth()->user()->can('brand_create'), 403);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'status' => 'required|boolean',
-        ]);
-        $brand = Brand::create($request->except('brand_image'));
-        if ($request->hasFile("brand_image")) {
-            $brand->image = $this->fileHandler->fileUploadAndGetPath($request->file("brand_image"), "/public/media/brands");
-            $brand->save();
-        }
+ public function store(Request $request)
+{
+    abort_if(!auth()->user()->can('brand_create'), 403);
 
-        return redirect()->route('backend.admin.brands.index')->with('success', 'Brand created successfully!');
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'status' => 'required|boolean',
+    ]);
+
+    $brand = Brand::create($request->except('brand_image'));
+
+    // Handle image upload & WebP conversion
+    if ($request->hasFile("brand_image")) {
+        $file = $request->file("brand_image");
+
+        // Unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+        $path = storage_path('app/public/media/brands/' . $filename);
+
+        // Convert to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Save path in database
+        $brand->image = 'media/brands/' . $filename;
+        $brand->save();
     }
+
+    return redirect()->route('backend.admin.brands.index')->with('success', 'Brand created successfully!');
+}
 
     /**
      * Display the specified resource.
@@ -109,38 +134,62 @@ class BrandController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
-    {
-        abort_if(!auth()->user()->can('brand_update'), 403);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'status' => 'required|boolean',
-        ]);
-        $brand = Brand::findOrFail($id);
-        $oldImage = $brand->image;
-        $brand->update($request->except('brand_image'));
-        if ($request->hasFile("brand_image")) {
-            $brand->image = $this->fileHandler->fileUploadAndGetPath($request->file("brand_image"), "/public/media/brands");
-            $brand->save();
+  public function update(Request $request, $id)
+{
+    abort_if(!auth()->user()->can('brand_update'), 403);
+
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'brand_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'status' => 'required|boolean',
+    ]);
+
+    $brand = Brand::findOrFail($id);
+    $oldImage = $brand->image;
+
+    // Update other fields first
+    $brand->update($request->except('brand_image'));
+
+    // Handle image upload & WebP conversion
+    if ($request->hasFile("brand_image")) {
+        $file = $request->file("brand_image");
+
+        // Unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+        $path = storage_path('app/public/media/brands/' . $filename);
+
+        // Convert to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Delete old image if exists
+        if ($oldImage) {
             $this->fileHandler->secureUnlink($oldImage);
         }
 
-        return redirect()->route('backend.admin.brands.index')->with('success', 'Brand updated successfully!');
+        // Save new path in DB
+        $brand->image = 'media/brands/' . $filename;
+        $brand->save();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
+    return redirect()->route('backend.admin.brands.index')->with('success', 'Brand updated successfully!');
+}
+
+     public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('brand_delete'), 403);
+        abort_if(!auth()->user()->can('brand_update'), 403); // permission check
+
         $brand = Brand::findOrFail($id);
-        if ($brand->image != '') {
-            $this->fileHandler->secureUnlink($brand->image);
-        }
-        $brand->delete();
-        return redirect()->back()->with('success', 'Brand Deleted Successfully');
+
+        $brand->status = $brand->status ? 0 : 1;
+        $brand->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Brand status updated successfully!',
+            'new_status' => $brand->status // optional, front-end update ke liye
+        ]);
     }
+
 }

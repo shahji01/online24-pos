@@ -39,7 +39,8 @@
     const table = $('#datatables').DataTable({
       processing: true,
       serverSide: true,
-      ajax: "{{ route('backend.admin.menus.index') }}",
+   ajax: "{{ route('backend.admin.menus.index') }}",
+
       order: [[1, 'asc']],
       columns: [
         { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false },

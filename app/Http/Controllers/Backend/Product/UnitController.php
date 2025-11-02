@@ -21,6 +21,13 @@ class UnitController extends Controller
                 ->addIndexColumn()
                 ->addColumn('title', fn($data) => $data->title)
                 ->addColumn('short_name', fn($data) => $data->short_name)
+                   ->addColumn('status', function ($data) {
+                    $toggleUrl = route('backend.admin.units.toggle', $data->id); 
+                    $status = $data->status
+                        ? '<span class="badge bg-primary">Active</span>'
+                        : '<span class="badge bg-danger">Inactive</span>';
+                    return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
+                })
                ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
@@ -30,15 +37,9 @@ class UnitController extends Controller
                     <div class="dropdown-menu" role="menu">
                       <a class="dropdown-item" href="' . route('backend.admin.units.edit', $data->id) . '" ' .' >
                     <i class="fas fa-edit"></i> Edit
-                </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.units.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
-                  </form>
                   </div>';
                 })
-                ->rawColumns(['title', 'short_name','action'])
+                ->rawColumns(['title', 'short_name',  'status', 'action'])
                 ->toJson();
         }
         return view('backend.units.index');
@@ -59,7 +60,12 @@ class UnitController extends Controller
     public function store(Request $request)
     {
         abort_if(!auth()->user()->can('unit_create'), 403);
-        $unit = Unit::create($request->only(['title','short_name']));
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'short_name' => 'required|string|max:50',
+          
+        ]);
+        Unit::create($validated);
 
         return redirect()->route('backend.admin.units.index')->with('success', 'Unit created successfully!');
     }
@@ -89,8 +95,14 @@ class UnitController extends Controller
     public function update(Request $request, $id)
     {
         abort_if(!auth()->user()->can('unit_update'), 403);
-        $unitToUpdate = Unit::findOrFail($id);
-        $unitToUpdate->update($request->only(['title', 'short_name']));
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'short_name' => 'required|string|max:50',
+          
+        ]);
+        $unit = Unit::findOrFail($id);
+        $unit->update($validated);
+
         return redirect()->route('backend.admin.units.index')->with('success', 'Unit updated successfully!');
     }
 
@@ -98,11 +110,17 @@ class UnitController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('unit_delete'), 403);
+        abort_if(!auth()->user()->can('unit_update'), 403);
         $unit = Unit::findOrFail($id);
-        $unit->delete();
-        return redirect()->back()->with('success', 'Unit Deleted Successfully');
+        $unit->status = $unit->status ? 0 : 1;
+        $unit->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Unit status updated successfully!',
+            'new_status' => $unit->status,
+        ]);
     }
 }

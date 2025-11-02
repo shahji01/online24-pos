@@ -22,22 +22,27 @@ class MenuController extends Controller
                         ? '<span class="badge bg-success">Active</span>'
                         : '<span class="badge bg-danger">Inactive</span>'
                 )
-                ->addColumn('action', function ($data) {
-                    $toggleUrl = route('backend.admin.menus.toggle', $data->id);
-                    $editUrl = route('backend.admin.menus.edit', $data->id);
+              ->addColumn('action', function ($data) {
+    $toggleUrl = route('backend.admin.menus.toggle', $data->id);
+    $editUrl = route('backend.admin.menus.edit', $data->id);
 
-                    return '
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="'.$editUrl.'"><i class="fas fa-edit"></i> Edit</a></li>
-                                <li><button type="button" class="dropdown-item toggle-status" data-url="'.$toggleUrl.'">
-                                    <i class="fas fa-exchange-alt"></i> Toggle Status
-                                </button></li>
-                            </ul>
-                        </div>
-                    ';
-                })
+    return '<div class="btn-group">
+        <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
+        <button type="button" class="btn bg-gradient-primary btn-flat dropdown-toggle dropdown-icon" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="sr-only">Toggle Dropdown</span>
+        </button>
+        <div class="dropdown-menu" role="menu">
+            <a class="dropdown-item" href="'.$editUrl.'">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item toggle-status" data-url="'.$toggleUrl.'">
+                <i class="fas fa-exchange-alt"></i> Toggle Status
+            </button>
+        </div>
+    </div>';
+})
+
                 ->rawColumns(['status', 'action'])
                 ->toJson();
         }

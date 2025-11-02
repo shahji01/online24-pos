@@ -1,4 +1,5 @@
 <?php
+
 use App\Http\Controllers\Backend\PageController;
 use App\Http\Controllers\Backend\MenuController;
 use App\Http\Controllers\Backend\CurrencyController;
@@ -64,34 +65,40 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
+      Route::get('brands/toggle/{id}', [BrandController::class, 'toggleStatus'])->name('brands.toggle');
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
     Route::resource('customers', CustomerController::class);
     Route::resource('products', ProductController::class);
+    Route::get('products/toggle/{id}', [ProductController::class, 'toggleStatus'])->name('products.toggle');
+
     Route::resource('units', UnitController::class);
+     Route::get('units/toggle/{id}', [UnitController::class, 'toggleStatus'])->name('units.toggle');
+
     Route::resource('currencies', CurrencyController::class);
     Route::resource('menus', MenuController::class);
     Route::get('menus/toggle/{id}', [MenuController::class, 'toggleStatus'])->name('menus.toggle');
     Route::get('menus/set-default/{id}', [MenuController::class, 'setDefault'])->name('menus.setDefault');
     Route::resource('pages', PageController::class);
-    Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
+    Route::match(['get', 'post'], 'import/products', [ProductController::class, 'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
     Route::get('customers/orders/{id}', [CustomerController::class, 'orders'])->name('customers.orders');
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
-    Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
+    Route::get('orders/invoice/{id}', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');
     Route::resource('categories', CategoryController::class);
+     Route::get('categories/toggle/{id}', [CategoryController::class, 'toggleStatus'])->name('categories.toggle');
     //start report
 
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');
     Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report');
     Route::get('/inventory/report', [ReportController::class, 'inventoryReport'])->name('inventory.report');
     //end report
-   // start pos
+    // start pos
     Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
@@ -100,7 +107,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::put('/cart/delete', [CartController::class, 'delete']);
     Route::put('/cart/empty', [CartController::class, 'empty']);
     Route::put('/order/create', [OrderController::class, 'store']);
-    Route::get('/get/customers',[CustomerController::class,'getCustomers']);
+    Route::get('/get/customers', [CustomerController::class, 'getCustomers']);
     Route::post('/create/customers', [CustomerController::class, 'store']);
     //end pos
     Route::get('profile', [DashboardController::class, 'profile'])->name('profile');

@@ -38,53 +38,69 @@
   </div>
 </div>
 @endsection
-
 @push('script')
 
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Bootstrap JS (required for dropdowns) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script type="text/javascript">
-  $(function() {
+$(document).ready(function() {
     let table = $('#datatables').DataTable({
-      processing: true,
-      serverSide: true,
-      ordering: true,
-      ajax: {
-        url: "{{ route('backend.admin.products.index') }}"
-      },
-
-      columns: [{
-          data: 'DT_RowIndex',
-          name: 'DT_RowIndex'
-        },
-        {
-          data: 'image',
-          name: 'image'
-        },
-        {
-          data: 'name',
-          name: 'name'
-        },
-        {
-          data: 'price',
-          name: 'price'
-        },
-        {
-          data: 'quantity',
-          name: 'quantity'
-        },
-        {
-          data: 'created_at',
-          name: 'created_at'
-        },
-        {
-          data: 'status',
-          name: 'status'
-        },
-        {
-          data: 'action',
-          name: 'action'
-        },
-      ]
+        processing: true,
+        serverSide: true,
+        ajax: "{{ route('backend.admin.products.index') }}",
+        columns: [
+            { data: 'DT_RowIndex', name: 'DT_RowIndex' },
+            { data: 'image', name: 'image' },
+            { data: 'name', name: 'name' },
+            { data: 'price', name: 'price' },
+            { data: 'quantity', name: 'quantity' },
+            { data: 'created_at', name: 'created_at' },
+            { data: 'status', name: 'status', orderable: false, searchable: false },
+            { data: 'action', name: 'action', orderable: false, searchable: false },
+        ]
     });
-  });
+
+    // Toggle Status with SweetAlert
+    $(document).on('click', '.toggle-status', function() {
+        let btn = $(this);
+        let url = btn.data('url');
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You want to change the product status!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, change it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.get(url, function(res) {
+                    if(res.status === 'success'){
+                        // Reload the DataTable row only
+                        table.ajax.reload(null, false);
+
+                        Swal.fire('Updated!', res.message, 'success');
+                    } else {
+                        Swal.fire('Error!', 'Something went wrong!', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // SweetAlert Success Toast for normal messages
+    @if(session('success'))
+    Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: '{{ session('success') }}',
+        timer: 2000,
+        showConfirmButton: false
+    });
+    @endif
+});
 </script>
 @endpush
