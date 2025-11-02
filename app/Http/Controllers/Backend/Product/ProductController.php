@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Backend\Product;
-
+use Intervention\Image\Facades\Image;
 use App\Exports\DemoProductsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
@@ -16,6 +16,7 @@ use App\Trait\FileHandler;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
+
 
 class ProductController extends Controller
 {
@@ -37,7 +38,20 @@ class ProductController extends Controller
             $products = Product::latest()->get();
             return DataTables::of($products)
                 ->addIndexColumn()
-                ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
+          ->addColumn('image', function($data) {
+    if ($data->image) {
+        $url = asset('storage/' . $data->image);
+        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="'.$url.'" alt="'.$data->name.'" style="width:100%; height:100%; object-fit:cover; transition: transform 0.3s;" class="img-hover-zoom"/>
+                </div>';
+    } else {
+        return '<div style="width:60px; height:60px; overflow:hidden; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                    <img src="'.asset('assets/images/no-image.png').'" style="width:100%; height:100%; object-fit:cover;" />
+                </div>';
+    }
+})
+
+
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn(
                     'price',
@@ -113,19 +127,35 @@ class ProductController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreProductRequest $request)
-    {
 
-        abort_if(!auth()->user()->can('product_create'), 403);
-        $validated = $request->validated();
-        $product = Product::create($validated);
-        if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
-            $product->save();
-        }
+public function store(StoreProductRequest $request)
+{
+    abort_if(!auth()->user()->can('product_create'), 403);
+    $validated = $request->validated();
 
-        return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
+    $product = Product::create($validated);
+
+    if ($request->hasFile("product_image")) {
+        $file = $request->file("product_image");
+
+        // Generate unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+
+        // Path where to save
+        $path = storage_path('app/public/media/products/' . $filename);
+
+        // Convert image to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Save path in database (relative to storage)
+        $product->image = 'media/products/' . $filename;
+        $product->save();
     }
+
+    return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
+}
+
 
     /**
      * Display the specified resource.
@@ -153,22 +183,44 @@ class ProductController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateProductRequest $request, $id)
-    {
 
-        abort_if(!auth()->user()->can('product_update'), 403);
-        $validated = $request->validated();
-        $product = Product::findOrFail($id);
-        $oldImage = $product->image;
-        $product->update($validated);
-        if ($request->hasFile("product_image")) {
-            $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
-            $product->save();
+
+public function update(UpdateProductRequest $request, $id)
+{
+    abort_if(!auth()->user()->can('product_update'), 403);
+
+    $validated = $request->validated();
+    $product = Product::findOrFail($id);
+    $oldImage = $product->image;
+
+    // Update other fields first
+    $product->update($validated);
+
+    // Handle image upload & WebP conversion
+    if ($request->hasFile("product_image")) {
+        $file = $request->file("product_image");
+
+        // Unique filename with .webp
+        $filename = time() . '_' . uniqid() . '.webp';
+        $path = storage_path('app/public/media/products/' . $filename);
+
+        // Convert to WebP and save
+        $img = Image::make($file)->encode('webp', 80); // 80% quality
+        $img->save($path);
+
+        // Delete old image if exists
+        if ($oldImage) {
             $this->fileHandler->secureUnlink($oldImage);
         }
 
-        return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
+        // Save new path in DB
+        $product->image = 'media/products/' . $filename;
+        $product->save();
     }
+
+    return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
+}
+
 
     /**
      * Remove the specified resource from storage.
