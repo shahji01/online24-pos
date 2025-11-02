@@ -21,7 +21,7 @@
             <thead>
               <tr>
                 <th data-orderable="false">#</th>
-                <th></th>
+                <th>Image</th>
                 <th>Name</th>
                 <th>Price{{currency()->symbol??''}}</th>
                 <th>Stock</th>
