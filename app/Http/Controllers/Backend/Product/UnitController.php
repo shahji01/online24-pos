@@ -23,9 +23,11 @@ class UnitController extends Controller
                 ->addColumn('short_name', fn($data) => $data->short_name)
                    ->addColumn('status', function ($data) {
                     $toggleUrl = route('backend.admin.units.toggle', $data->id); 
-                    $status = $data->status
+                    $status = $data->status == 1
                         ? '<span class="badge bg-primary">Active</span>'
-                        : '<span class="badge bg-danger">Inactive</span>';
+                        : ($data->status == 2
+                            ? '<span class="badge bg-danger">Inactive</span>'
+                            : '<span class="badge bg-secondary">Unknown</span>');
                     return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
                 })
                ->addColumn('action', function ($data) {
@@ -113,14 +115,20 @@ class UnitController extends Controller
     public function toggleStatus($id)
     {
         abort_if(!auth()->user()->can('unit_update'), 403);
+
         $unit = Unit::findOrFail($id);
-        $unit->status = $unit->status ? 0 : 1;
+
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $unit->status = ($unit->status == 1) ? 2 : 1;
         $unit->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Unit status updated successfully!',
             'new_status' => $unit->status,
+            'badge_html' => $unit->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
 }

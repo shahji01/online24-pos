@@ -23,9 +23,11 @@ class CustomerController extends Controller
                 ->addColumn('address', fn($data) => $data->address)
                   ->addColumn('status', function ($data) {
                     $toggleUrl = route('backend.admin.customers.toggle', $data->id); 
-                    $status = $data->status
+                    $status = $data->status == 1
                         ? '<span class="badge bg-primary">Active</span>'
-                        : '<span class="badge bg-danger">Inactive</span>';
+                        : ($data->status == 2
+                            ? '<span class="badge bg-danger">Inactive</span>'
+                            : '<span class="badge bg-secondary">Unknown</span>');
                     return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
                 })
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y')) // Using Carbon for formatting
@@ -153,14 +155,20 @@ class CustomerController extends Controller
      public function toggleStatus($id)
     {
         abort_if(!auth()->user()->can('customer_update'), 403);
+
         $customer = Customer::findOrFail($id);
-        $customer->status = $customer->status ? 0 : 1;
+
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $customer->status = ($customer->status == 1) ? 2 : 1;
         $customer->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Customer status updated successfully!',
             'new_status' => $customer->status,
+            'badge_html' => $customer->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
     public function getCustomers(Request $request)

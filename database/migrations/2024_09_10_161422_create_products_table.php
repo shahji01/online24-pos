@@ -30,7 +30,7 @@ return new class extends Migration
             $table->double('purchase_price', 10, 2)->default(0);
             $table->integer('quantity')->default(0);
             $table->date('expire_date')->nullable();
-            $table->tinyInteger('status')->default(1);
+            $table->integer('status')->default(1)->comment('1 = Active, 2 = Inactive');
             $table->timestamps();
         });
     }

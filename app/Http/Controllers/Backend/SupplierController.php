@@ -24,9 +24,11 @@ class SupplierController extends Controller
                 ->addColumn('address', fn($data) => $data->address)
                     ->addColumn('status', function ($data) {
                     $toggleUrl = route('backend.admin.suppliers.toggle', $data->id); 
-                    $status = $data->status
+                    $status = $data->status == 1
                         ? '<span class="badge bg-primary">Active</span>'
-                        : '<span class="badge bg-danger">Inactive</span>';
+                        : ($data->status == 2
+                            ? '<span class="badge bg-danger">Inactive</span>'
+                            : '<span class="badge bg-secondary">Unknown</span>');
                     return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
                 })
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y')) // Using Carbon for formatting
@@ -134,14 +136,20 @@ class SupplierController extends Controller
   public function toggleStatus($id)
     {
         abort_if(!auth()->user()->can('supplier_update'), 403);
+
         $supplier = Supplier::findOrFail($id);
-        $supplier->status = $supplier->status ? 0 : 1;
+
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $supplier->status = ($supplier->status == 1) ? 2 : 1;
         $supplier->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Supplier status updated successfully!',
             'new_status' => $supplier->status,
+            'badge_html' => $supplier->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
 

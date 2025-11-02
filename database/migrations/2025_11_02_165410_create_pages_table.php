@@ -40,7 +40,7 @@ return new class extends Migration
             $table->string('redirect_302')->nullable();
 
             $table->boolean('active')->default(false); 
-            $table->boolean('status')->default(true);
+            $table->integer('status')->default(1)->comment('1 = Active, 2 = Inactive');
             $table->timestamps();
 
             // Foreign key constraint

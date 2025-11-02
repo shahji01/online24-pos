@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->integer('serial_no')->nullable();
             $table->boolean('active')->default(true); // active/inactive toggle
             $table->boolean('default')->default(false);
+            $table->integer('status')->default(1)->comment('1 = Active, 2 = Inactive');
             $table->timestamps();
         });
     }

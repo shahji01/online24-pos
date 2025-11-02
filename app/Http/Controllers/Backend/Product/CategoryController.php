@@ -42,9 +42,11 @@ class CategoryController extends Controller
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn('status', function ($data) {
                     $toggleUrl = route('backend.admin.categories.toggle', $data->id); 
-                    $status = $data->status
+                    $status = $data->status == 1
                         ? '<span class="badge bg-primary">Active</span>'
-                        : '<span class="badge bg-danger">Inactive</span>';
+                        : ($data->status == 2
+                            ? '<span class="badge bg-danger">Inactive</span>'
+                            : '<span class="badge bg-secondary">Unknown</span>');
                     return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
                 })
                 ->addColumn('action', function ($data) {
@@ -176,17 +178,21 @@ class CategoryController extends Controller
     
       public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('category_update'), 403); // permission check
+        abort_if(!auth()->user()->can('category_update'), 403);
 
         $category = Category::findOrFail($id);
 
-        $category->status = $category->status ? 0 : 1;
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $category->status = ($category->status == 1) ? 2 : 1;
         $category->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Category status updated successfully!',
-            'new_status' => $category->status // optional, front-end update ke liye
+            'new_status' => $category->status,
+            'badge_html' => $category->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
 

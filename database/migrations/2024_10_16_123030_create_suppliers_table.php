@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone')->unique()->nullable();
             $table->string('address')->nullable();
-              $table->tinyInteger('status')->default(1);
+            $table->integer('status')->default(1)->comment('1 = Active , 2 = Inactive');
             $table->timestamps();
         });
     }

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('discount_type')->default('fixed');
             $table->double('shipping', 10, 2)->default(0);
             $table->double('grand_total', 10, 2)->default(0);
-            $table->tinyInteger('status');
+            $table->integer('status')->default(1)->comment('1 = Active, 2 = Inactive');
             $table->timestamp('date')->useCurrent();
             $table->timestamps();
         });

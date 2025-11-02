@@ -24,7 +24,7 @@ return new class extends Migration
             $table->double('due')->default(0)->comment('total - paid');
             $table->text('note')->nullable();
             $table->boolean('is_returned')->default(0);
-            $table->tinyInteger('status')->default(1);
+            $table->integer('status')->default(1)->comment('1 = Active, 2 = Inactive');
             $table->timestamps();
         });
     }

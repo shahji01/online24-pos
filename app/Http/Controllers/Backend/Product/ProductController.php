@@ -65,9 +65,11 @@ class ProductController extends Controller
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y'))
                 ->addColumn('status', function ($data) {
                     $toggleUrl = route('backend.admin.products.toggle', $data->id); 
-                    $status = $data->status
+                    $status = $data->status == 1
                         ? '<span class="badge bg-primary">Active</span>'
-                        : '<span class="badge bg-danger">Inactive</span>';
+                        : ($data->status == 2
+                            ? '<span class="badge bg-danger">Inactive</span>'
+                            : '<span class="badge bg-secondary">Unknown</span>');
                     return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
                 })
 
@@ -231,17 +233,21 @@ class ProductController extends Controller
     // Toggle Active/Inactive
     public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('product_update'), 403); // permission check
+        abort_if(!auth()->user()->can('product_update'), 403);
 
         $product = Product::findOrFail($id);
 
-        $product->status = $product->status ? 0 : 1;
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $product->status = ($product->status == 1) ? 2 : 1;
         $product->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Product status updated successfully!',
-            'new_status' => $product->status // optional, front-end update ke liye
+            'new_status' => $product->status,
+            'badge_html' => $product->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
 

@@ -94,13 +94,21 @@ class MenuController extends Controller
     // Toggle Active/Inactive
     public function toggleStatus($id)
     {
+        //abort_if(!auth()->user()->can('menu_update'), 403);
+
         $menu = Menu::findOrFail($id);
-        $menu->active = !$menu->active;
+
+        // If status = 1 (Active), make it 2 (Inactive), else make it 1 (Active)
+        $menu->status = ($menu->status == 1) ? 2 : 1;
         $menu->save();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Menu status updated successfully!'
+            'message' => 'Menu status updated successfully!',
+            'new_status' => $menu->status,
+            'badge_html' => $menu->status == 1
+                ? '<span class="badge bg-primary">Active</span>'
+                : '<span class="badge bg-danger">Inactive</span>',
         ]);
     }
 
