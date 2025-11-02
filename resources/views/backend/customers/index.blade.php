@@ -12,6 +12,7 @@
     </a>
   </div>
   @endcan
+
   <div class="card-body p-2 p-md-4 pt-0">
     <div class="row g-4">
       <div class="col-md-12">
@@ -24,9 +25,8 @@
                 <th>Phone</th>
                 <th>Address</th>
                 <th>Created</th>
-                <th data-orderable="false">
-                  Action
-                </th>
+                <th>Status</th>
+                <th data-orderable="false">Action</th>
               </tr>
             </thead>
           </table>
@@ -39,45 +39,66 @@
 
 
 @push('script')
-<script type="text/javascript">
-  $(function() {
-    let table = $('#datatables').DataTable({
-      processing: true,
-      serverSide: true,
-      ordering: true,
-      order: [
-        [1, 'asc']
-      ],
-      ajax: {
-        url: "{{ route('backend.admin.customers.index') }}"
-      },
 
-      columns: [{
-          data: 'DT_RowIndex',
-          name: 'DT_RowIndex'
-        },
-        {
-          data: 'name',
-          name: 'name'
-        },
-        {
-          data: 'phone',
-          name: 'phone'
-        },
-        {
-          data: 'address',
-          name: 'address'
-        },
-        {
-          data: 'created_at',
-          name: 'created_at'
-        },
-        {
-          data: 'action',
-          name: 'action'
-        },
-      ]
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Bootstrap JS (for dropdowns) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    let table = $('#datatables').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: "{{ route('backend.admin.customers.index') }}",
+        columns: [
+            { data: 'DT_RowIndex', name: 'DT_RowIndex' },
+            { data: 'name', name: 'name' },
+            { data: 'phone', name: 'phone' },
+            { data: 'address', name: 'address' },
+            { data: 'created_at', name: 'created_at' },
+            { data: 'status', name: 'status', orderable: false, searchable: false },
+            { data: 'action', name: 'action', orderable: false, searchable: false },
+        ]
     });
-  });
+
+    // 🔄 Toggle Status with SweetAlert
+    $(document).on('click', '.toggle-status', function() {
+        let btn = $(this);
+        let url = btn.data('url');
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You want to change this customer's status!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, change it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.get(url, function(res) {
+                    if(res.status === 'success'){
+                        table.ajax.reload(null, false); // reload DataTable only
+                        Swal.fire('Updated!', res.message, 'success');
+                    } else {
+                        Swal.fire('Error!', 'Something went wrong!', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // ✅ SweetAlert Toast for Success messages
+    @if(session('success'))
+    Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: '{{ session('success') }}',
+        timer: 2000,
+        showConfirmButton: false
+    });
+    @endif
+});
 </script>
 @endpush

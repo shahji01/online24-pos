@@ -65,16 +65,18 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
     Route::resource('brands', BrandController::class);
-      Route::get('brands/toggle/{id}', [BrandController::class, 'toggleStatus'])->name('brands.toggle');
+    Route::get('brands/toggle/{id}', [BrandController::class, 'toggleStatus'])->name('brands.toggle');
     Route::resource('orders', OrderController::class);
     Route::resource('purchase', PurchaseController::class);
     Route::resource('suppliers', SupplierController::class);
+    Route::get('suppliers/toggle/{id}', [SupplierController::class, 'toggleStatus'])->name('suppliers.toggle');
     Route::resource('customers', CustomerController::class);
+    Route::get('customers/toggle/{id}', [CustomerController::class, 'toggleStatus'])->name('customers.toggle');
     Route::resource('products', ProductController::class);
     Route::get('products/toggle/{id}', [ProductController::class, 'toggleStatus'])->name('products.toggle');
 
     Route::resource('units', UnitController::class);
-     Route::get('units/toggle/{id}', [UnitController::class, 'toggleStatus'])->name('units.toggle');
+    Route::get('units/toggle/{id}', [UnitController::class, 'toggleStatus'])->name('units.toggle');
 
     Route::resource('currencies', CurrencyController::class);
     Route::resource('menus', MenuController::class);

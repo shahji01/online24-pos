@@ -22,6 +22,13 @@ class SupplierController extends Controller
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn('phone', fn($data) => $data->phone)
                 ->addColumn('address', fn($data) => $data->address)
+                    ->addColumn('status', function ($data) {
+                    $toggleUrl = route('backend.admin.suppliers.toggle', $data->id); 
+                    $status = $data->status
+                        ? '<span class="badge bg-primary">Active</span>'
+                        : '<span class="badge bg-danger">Inactive</span>';
+                    return '<button class="btn btn-sm btn-light toggle-status" data-url="' . $toggleUrl . '">' . $status . '</button>';
+                })
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y')) // Using Carbon for formatting
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
@@ -32,16 +39,11 @@ class SupplierController extends Controller
                     <div class="dropdown-menu" role="menu">
                       <a class="dropdown-item" href="' . route('backend.admin.suppliers.edit', $data->id) . '" ' . ($data->id == 1 ? 'onclick="event.preventDefault();"' : '') . ' >
                     <i class="fas fa-edit"></i> Edit
-                </a> <div class="dropdown-divider"></div>
-<form action="' . route('backend.admin.suppliers.destroy', $data->id) . '"method="POST" style="display:inline;">
-                   ' . csrf_field() . '
-                    ' . method_field("DELETE") . '
-<button type="submit" ' . ($data->id == 1 ? 'disabled' : '') . ' class="dropdown-item" onclick="return confirm(\'Are you sure ?\')"><i class="fas fa-trash"></i> Delete</button>
-                  </form>
+            
                     </div>
                   </div>';
                 })
-                ->rawColumns(['name', 'phone', 'address', 'created_at', 'action'])
+                ->rawColumns(['name', 'phone', 'address',   'status', 'created_at', 'action'])
                 ->toJson();
         }
         if ($request->wantsJson()) {
@@ -129,18 +131,20 @@ class SupplierController extends Controller
         return to_route('backend.admin.suppliers.index');
     }
 
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
+  public function toggleStatus($id)
     {
-        abort_if(!auth()->user()->can('supplier_delete'), 403);
+        abort_if(!auth()->user()->can('supplier_update'), 403);
         $supplier = Supplier::findOrFail($id);
-        $supplier->delete();
-        session()->flash('success', 'Supplier deleted successfully.');
-        return to_route('backend.admin.suppliers.index');
+        $supplier->status = $supplier->status ? 0 : 1;
+        $supplier->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Supplier status updated successfully!',
+            'new_status' => $supplier->status,
+        ]);
     }
+
     public function getCustomers(Request $request)
     {
         if ($request->wantsJson()) {
