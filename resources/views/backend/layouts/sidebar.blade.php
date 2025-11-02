@@ -258,6 +258,24 @@
                     </ul>
                 </li>
                 @endif
+
+                {{-- Website Management --}}
+                <li class="nav-header mt-3 text-uppercase text-sm text-muted">Management</li>
+                <li class="nav-item {{ request()->is('backend/admin/settings*') || request()->is('backend/admin/users*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('backend/admin/settings*') || request()->is('backend/admin/users*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-gears"></i>
+                        <p>Website Management<i class="right fas fa-angle-left"></i></p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('backend.admin.menus.index') }}"
+                                class="nav-link {{ request()->is('backend/admin/menus*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Menus</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
             </ul>
         </nav>
     </div>

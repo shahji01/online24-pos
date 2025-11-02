@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\Backend\MenuController;
 use App\Http\Controllers\Backend\CurrencyController;
 use App\Http\Controllers\Backend\Pos\CartController;
 use App\Http\Controllers\Backend\Product\ProductController;
@@ -70,6 +70,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('products', ProductController::class);
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class);
+    Route::resource('menus', MenuController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
     Route::get('customers/orders/{id}', [CustomerController::class, 'orders'])->name('customers.orders');
