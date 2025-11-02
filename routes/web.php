@@ -72,6 +72,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin'])->group(funct
     Route::resource('units', UnitController::class);
     Route::resource('currencies', CurrencyController::class);
     Route::resource('menus', MenuController::class);
+    Route::get('menus/toggle/{id}', [MenuController::class, 'toggleStatus'])->name('menus.toggle');
+    Route::get('menus/set-default/{id}', [MenuController::class, 'setDefault'])->name('menus.setDefault');
     Route::resource('pages', PageController::class);
     Route::match(['get', 'post'], 'import/products', [ProductController::class,'import'])->name('products.import');
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');

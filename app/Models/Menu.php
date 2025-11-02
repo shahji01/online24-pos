@@ -8,5 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 class Menu extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'url', 'serial_no'];
+
+    protected $fillable = [
+        'name',
+        'url',
+        'serial_no',
+        'active',
+        'default'
+    ];
+
+    protected $casts = [
+        'active' => 'boolean',
+        'default' => 'boolean',
+    ];
 }
