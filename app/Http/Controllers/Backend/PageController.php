@@ -68,7 +68,7 @@ class PageController extends Controller
      */
     public function create()
     {
-        $menus = Menu::where('status', true)->get();
+        $menus = Menu::get();
         return view('backend.pages.create', compact('menus'));
     }
 
@@ -113,7 +113,7 @@ class PageController extends Controller
     public function edit($id)
     {
         $page = Page::findOrFail($id);
-        $menus = Menu::where('status', true)->get();
+        $menus = Menu::get();
         return view('backend.pages.edit', compact('page', 'menus'));
     }
 
